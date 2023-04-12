@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime
+import json
+import sqlite3
+
+# # Create a connection to the database
+conn = sqlite3.connect('tasks.db')
+
 
 #function to get the data from the url every Sunday
 def get_data():
@@ -9,23 +15,33 @@ def get_data():
     url = 'https://freakqency.pythonanywhere.com'
     response = requests.get(url)
 
-    responses = response.content.decode('utf-8')
 
-    # Split the string into rows and columns
-    rows = responses.split('\n')
-    cols = rows[0].split(':')
-    data = [r.split(':') for r in rows if r]
 
-    # Create a Pandas DataFrame
-    df = pd.DataFrame(data, columns=["Assigned to","Task"])
-    df.to_csv('tasks.csv', index=False)
+    # Convert json to dictionary
+    data = json.loads(response.text)
 
+        # Convert the dictionary to a list of tuples
+    data_list = [(name, task) for name, task in data.items()]
+
+    # Create a DataFrame from the list
+    df = pd.DataFrame(data_list, columns=['Names', 'Task'])
+
+    # Write the DataFrame to a sqlite database
+
+    df.to_sql('tasks', conn, if_exists='replace', index=False)
+
+# get_data()
+# # Get the data every Sunday
 if datetime.today().weekday() == 0:
     get_data()
 
-# Read the data from the CSV file
-df = pd.read_csv('tasks.csv')
 
-# Show the updated DataFrame after the user checks the checkboxes
+# # Show the updated DataFrame after the user checks the checkboxes
 st.write("Here's the updated task list:")
-st.write(df)
+
+#Fetch the data from the database
+df = pd.read_sql('SELECT * FROM tasks', conn)
+
+# Show the DataFrame
+st.dataframe(df)
+
